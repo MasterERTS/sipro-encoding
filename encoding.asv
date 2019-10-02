@@ -1,0 +1,80 @@
+clear all
+clear variables
+
+% A basic codec
+
+musicFile = dir('musique.wav');
+
+[y,Fs] = audioread('musique.wav');
+
+bitsLength = musicFile.bytes * 8;
+
+fprintf("Sampling frequency : %f\n", Fs);
+fprintf("Length in bits : %f\n", bitsLength);
+
+sound(y, Fs);
+
+musicEncodedFile = "musicEncoded.wav";
+
+[npt, scale] = coder(y, Fs, bitsLength, 2000, 2500, musicEncodedFile);
+
+fprintf("Scale : %f\n", scale);
+fprintf("Number of Points : %f\n", npt);
+
+function [npt, scale] = coder(y, fs, bits, fmin, fmax, file)
+
+    % tfd computation, then ensures column vector
+    tfy = fft(y);
+    tfy = tfy(:);
+    
+    % From frequency mask to matlab index
+    npt = length(y);
+    kmin = round(npt * fmin / fs) + 1;
+    kmax = round(npt * fmax / fs) + 1;
+    
+    % Mask
+    tfymasq = tfy(kmin:kmax);
+    
+    % Real and imaginary part are stored
+    % as both channels of a stereo signal
+    tfymasq = [real(tfymasq) imag(tfymasq)];
+    
+    % Ensures maximum value lower than 1
+    scale = max(max(abs(tfymasq))) * 1.01;
+    tfymasq = tfymasq / scale;
+    
+    % Stores with same quantization
+    audiowrite(file, tfymasq, fs)
+    %, bits)
+
+end
+
+function [y, fs, bits] = decoder(file, fmin, fmax, npt, scale)
+
+% reads the windowed Fourier transform stored in file fichier (wavread);
+[tfy, Fs] = audioread('musicEncoded.wav');
+
+% rebuild the original Fourier transform with the assumption that the missing values are null, and rescale it
+% properly;
+tfy = tfy * scale;
+tfyNpt = length(tfy);
+
+
+
+tfy = tfy(:);
+
+
+% computes the inverse Fourier transform;
+y = ifft(tfy);
+
+%returns the decoded signal y, and the same output arguments than function wavread.
+
+end
+
+function [f, tfx] = transffourier(y, Nf, fs)
+    
+    k = 0:Nf-1;
+    f = k*fs/Nf;
+    tfx = 1/fs*fft(y, Nf);
+  
+end
